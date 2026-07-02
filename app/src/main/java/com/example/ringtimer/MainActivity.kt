@@ -28,7 +28,11 @@ class MainActivity : ComponentActivity() {
 
         // 2. Launch the permission request when the app starts
         permissionLauncher.launch(
-            arrayOf(Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_CALL_LOG)
+            arrayOf(
+                Manifest.permission.READ_PHONE_STATE,
+                Manifest.permission.READ_CALL_LOG,
+                Manifest.permission.READ_CONTACTS
+            )
         )
 
         val myCallLogRepository = CallLogRepository.getInstance(this)
