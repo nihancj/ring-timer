@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.telephony.TelephonyManager
 import com.example.ringtimer.data.CallLogRepository
+import kotlin.math.round
 
 class CallStateReceiver : BroadcastReceiver() {
 
@@ -15,8 +16,8 @@ class CallStateReceiver : BroadcastReceiver() {
         var lastState: String = TelephonyManager.EXTRA_STATE_IDLE
         var incomingNumber: String? = null
 
-        fun estimateRingCount(durationMs: Long, avgRingCycleMs: Long = 5000L): Int =
-            (durationMs / avgRingCycleMs).toInt().coerceAtLeast(if (durationMs > 0) 1 else 0)
+        fun estimateRingCount(durationMs: Long, avgRingCycleMs: Double = 3000.0): Int =
+            round(durationMs / avgRingCycleMs).toInt()
     }
 
     override fun onReceive(context: Context, intent: Intent) {
