@@ -8,11 +8,15 @@ import androidx.core.content.ContextCompat
 import android.Manifest
 
 object ContactLookupHelper {
+    private val cache = mutableMapOf<String, String?>()
 
     fun getContactName(context: Context, phoneNumber: String?): String? {
         if (phoneNumber.isNullOrBlank()) return null
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS)
             != PackageManager.PERMISSION_GRANTED) return null
+
+        cache[phoneNumber]?.let { return it }
+        var result:String? = null
 
         val uri = Uri.withAppendedPath(
             ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
@@ -23,9 +27,11 @@ object ContactLookupHelper {
         context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) {
                 val nameIndex = cursor.getColumnIndex(ContactsContract.PhoneLookup.DISPLAY_NAME)
-                if (nameIndex >= 0) return cursor.getString(nameIndex)
+                if (nameIndex >= 0) result = cursor.getString(nameIndex)
             }
         }
-        return null
+
+        cache[phoneNumber] = result
+        return result
     }
 }

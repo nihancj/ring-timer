@@ -3,15 +3,13 @@ package com.example.ringtimer.data
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
-import kotlinx.coroutines.flow.Flow
+import androidx.paging.PagingSource
 
-class CallEventDao {
-    @Dao
-    interface CallEventDao {
-        @Insert
-        suspend fun insert(event: CallEvent.CallEvent)
+@Dao
+interface CallEventDao {
+    @Insert
+    suspend fun insert(event: CallEvent)
 
-        @Query("SELECT * FROM call_events ORDER BY timestamp DESC")
-        fun getAll(): Flow<List<CallEvent.CallEvent>>
-    }
+    @Query("SELECT * FROM call_events ORDER BY timestamp DESC")
+    fun getAllPaged(): PagingSource<Int, CallEvent>
 }

@@ -57,7 +57,6 @@ class CallStateReceiver : BroadcastReceiver() {
     }
 
     private fun saveCallEvent(context: Context, number: String?, durationMs: Long, answered: Boolean) {
-        // Fire off to Room via a repository — see section 4.
         // Use goAsync() or WorkManager if this write needs to survive receiver teardown.
         CallLogRepository.getInstance(context).logCall(number, durationMs, answered)
     }
