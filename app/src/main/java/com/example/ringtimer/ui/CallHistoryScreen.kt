@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
@@ -34,7 +35,10 @@ import com.example.ringtimer.util.ContactLookupHelper
 @Composable
 fun CallHistoryScreen(repository: CallLogRepository) {
     val context = LocalContext.current
-    val events = repository.getPagedEvents().collectAsLazyPagingItems()
+    val viewModel: CallHistoryViewModel = viewModel(
+        factory = CallHistoryViewModelFactory(repository)
+    )
+    val events = viewModel.pagedEvents.collectAsLazyPagingItems()
 
     LazyColumn(
         modifier = Modifier
