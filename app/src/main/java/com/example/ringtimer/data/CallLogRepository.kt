@@ -27,7 +27,7 @@ class CallLogRepository private constructor(context: Context) {
             dao.insert(
                 CallEvent(
                     phoneNumber = number,
-                    timestamp = System.currentTimeMillis(),
+                    timestamp = System.currentTimeMillis() - durationMs,
                     ringDurationMs = durationMs,
                     estimatedRings = estimateRingCount(durationMs),
                     wasAnswered = answered
