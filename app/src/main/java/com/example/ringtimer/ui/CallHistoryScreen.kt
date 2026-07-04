@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,14 +15,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,58 +44,78 @@ import androidx.paging.compose.itemKey
 import com.example.ringtimer.R
 import com.example.ringtimer.data.CallEvent
 import com.example.ringtimer.data.CallLogRepository
+import com.example.ringtimer.data.ContactFilterOption
 import com.example.ringtimer.ui.theme.CallColors
 import com.example.ringtimer.util.CallDateFormatter
 import com.example.ringtimer.util.ContactLookupHelper
 
 @Composable
 fun CallHistoryScreen(repository: CallLogRepository) {
-    val context = LocalContext.current
+    val appContext = LocalContext.current.applicationContext
     val viewModel: CallHistoryViewModel = viewModel(
-        factory = CallHistoryViewModelFactory(repository)
+        factory = CallHistoryViewModelFactory(repository, appContext)
     )
     val events = viewModel.pagedEvents.collectAsLazyPagingItems()
-    val isEmpty = events.loadState.refresh is LoadState.NotLoading && events.itemCount == 0
-    val isLoading = events.loadState.refresh is LoadState.Loading
+    val contactOptions by viewModel.contactOptions.collectAsState()
+    val selectedContacts by viewModel.selectedContacts.collectAsState()
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(CallColors.Background)
     ) {
-        when {
-            isLoading -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = CallColors.Answered
-                )
-            }
+        ContactFilterRow(
+            options = contactOptions,
+            selected = selectedContacts,
+            onToggle = viewModel::toggleContact
+        )
 
-            isEmpty -> {
-                EmptyCallHistory()
-            }
+        val isEmpty = events.loadState.refresh is LoadState.NotLoading && events.itemCount == 0
+        val isLoading = events.loadState.refresh is LoadState.Loading
 
-            else -> {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(
-                        count = events.itemCount,
-                        key = events.itemKey { model ->
-                            when (model) {
-                                is CallHistoryUiModel.DateHeader -> "header_${model.label}"
-                                is CallHistoryUiModel.CallRow -> model.event.id
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(CallColors.Background)
+        ) {
+            when {
+                isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = CallColors.Answered
+                    )
+                }
+
+                isEmpty -> {
+                    EmptyCallHistory(selectedContacts.isNotEmpty())
+                }
+
+                else -> {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(
+                            count = events.itemCount,
+                            key = events.itemKey { model ->
+                                when (model) {
+                                    is CallHistoryUiModel.DateHeader -> "header_${model.label}"
+                                    is CallHistoryUiModel.CallRow -> model.event.id
+                                }
+                            },
+                            contentType = events.itemContentType { model ->
+                                when (model) {
+                                    is CallHistoryUiModel.DateHeader -> "header"
+                                    is CallHistoryUiModel.CallRow -> "row"
+                                }
                             }
-                        },
-                        contentType = events.itemContentType { model ->
-                            when (model) {
-                                is CallHistoryUiModel.DateHeader -> "header"
-                                is CallHistoryUiModel.CallRow -> "row"
+                        ) { index ->
+                            when (val model = events[index]) {
+                                is CallHistoryUiModel.DateHeader -> DateHeaderRow(model.label)
+                                is CallHistoryUiModel.CallRow -> CallHistoryRow(
+                                    LocalContext.current,
+                                    model.event
+                                )
+
+                                null -> Unit
                             }
-                        }
-                    ) { index ->
-                        when (val model = events[index]) {
-                            is CallHistoryUiModel.DateHeader -> DateHeaderRow(model.label)
-                            is CallHistoryUiModel.CallRow -> CallHistoryRow(context, model.event)
-                            null -> Unit
                         }
                     }
                 }
@@ -154,7 +181,40 @@ fun CallHistoryRow(context: Context, event: CallEvent) {
 }
 
 @Composable
-fun EmptyCallHistory() {
+fun ContactFilterRow(
+    options: List<ContactFilterOption>,
+    selected: Set<String>,
+    onToggle: (String) -> Unit
+) {
+    if (options.isEmpty()) return
+
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CallColors.Surface)
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp)
+    ) {
+        items(options, key = { it.displayName }) { option ->
+            val isSelected = option.displayName in selected
+            FilterChip(
+                selected = isSelected,
+                onClick = { onToggle(option.displayName) },
+                label = { Text(option.displayName) },
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = CallColors.Surface,
+                    selectedContainerColor = CallColors.Answered.copy(alpha = 0.15f),
+                    labelColor = CallColors.SecondaryText,
+                    selectedLabelColor = CallColors.Answered
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun EmptyCallHistory(isFiltered: Boolean) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -176,7 +236,8 @@ fun EmptyCallHistory() {
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            "Your call history will show up here once you receive or miss a call.",
+            "Your call history will show up here once you receive or miss a call"
+                    + if(isFiltered) " from this contact." else ".",
             color = CallColors.SecondaryText,
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center
