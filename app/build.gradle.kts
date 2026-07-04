@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.ringtimer"
         minSdk = 29
         targetSdk = 34
-        versionCode = 201
-        versionName = "0.0.2-dev-01"
+        versionCode = 102
+        versionName = "0.0.1-dev-02"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
