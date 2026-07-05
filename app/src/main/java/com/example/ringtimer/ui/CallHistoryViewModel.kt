@@ -12,10 +12,10 @@ import kotlinx.coroutines.flow.StateFlow
 import android.content.Context
 import com.example.ringtimer.data.ContactFilterOption
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 
-// ui/CallHistoryViewModel.kt
 class CallHistoryViewModel(
     private val repository: CallLogRepository,
     private val appContext: Context
@@ -23,6 +23,9 @@ class CallHistoryViewModel(
 
     private val _selectedContacts = MutableStateFlow<Set<String>>(emptySet())
     val selectedContacts: StateFlow<Set<String>> = _selectedContacts
+
+    private val _selectedTypes = MutableStateFlow<Set<CallTypeFilter>>(emptySet())
+    val selectedTypes: StateFlow<Set<CallTypeFilter>> = _selectedTypes
 
     private val _contactOptions = MutableStateFlow<List<ContactFilterOption>>(emptyList())
     val contactOptions: StateFlow<List<ContactFilterOption>> = _contactOptions
@@ -35,13 +38,14 @@ class CallHistoryViewModel(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val pagedEvents: Flow<PagingData<CallHistoryUiModel>> =
-        _selectedContacts.flatMapLatest { selectedNames ->
-            val numbers = _contactOptions.value
-                .filter { it.displayName in selectedNames }
-                .flatMap { it.numbers }
-                .toSet()
-            repository.getPagedEventsFlow(numbers)
-        }.cachedIn(viewModelScope)
+        combine(_selectedContacts, _selectedTypes) { names, types -> names to types }
+            .flatMapLatest { (selectedNames, types) ->
+                val numbers = _contactOptions.value
+                    .filter { it.displayName in selectedNames }
+                    .flatMap { it.numbers }
+                    .toSet()
+                repository.getPagedEventsFlow(numbers, types)
+            }.cachedIn(viewModelScope)
 
     fun toggleContact(name: String) {
         _selectedContacts.value =
@@ -49,8 +53,18 @@ class CallHistoryViewModel(
             else _selectedContacts.value + name
     }
 
+    fun toggleType(type: CallTypeFilter) {
+        //_selectedTypes.value =
+        //    if (type in _selectedTypes.value) _selectedTypes.value - type
+        //    else _selectedTypes.value + type
+        _selectedTypes.value =
+            if (type in _selectedTypes.value) setOf()
+            else setOf(type)
+    }
+
     fun clearFilters() {
         _selectedContacts.value = emptySet()
+        _selectedTypes.value = emptySet()
     }
 }
 

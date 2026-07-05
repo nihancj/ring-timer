@@ -2,6 +2,7 @@ package com.example.ringtimer.ui
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
@@ -29,6 +31,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -80,6 +83,7 @@ fun CallHistoryScreen(repository: CallLogRepository) {
     val events = viewModel.pagedEvents.collectAsLazyPagingItems()
     val contactOptions by viewModel.contactOptions.collectAsState()
     val selectedContacts by viewModel.selectedContacts.collectAsState()
+    val selectedTypes by viewModel.selectedTypes.collectAsState()
     var isSearchActive by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
     val closeSearch = {
@@ -98,6 +102,7 @@ fun CallHistoryScreen(repository: CallLogRepository) {
                 searchText = searchText,
                 onSearchTextChange = { searchText = it },
                 selectedCount = selectedContacts.size,
+                selectedTypes = selectedTypes,
                 onSearchClick = { isSearchActive = true },
                 onCloseSearch = closeSearch
             )
@@ -114,7 +119,9 @@ fun CallHistoryScreen(repository: CallLogRepository) {
                     searchText = searchText,
                     options = contactOptions,
                     selected = selectedContacts,
+                    selectedTypes = selectedTypes,
                     onToggle = viewModel::toggleContact,
+                    onToggleType = viewModel::toggleType,
                     onClearAll = viewModel::clearFilters
                 )
             } else {
@@ -131,6 +138,7 @@ fun CallHistoryTopBar(
     searchText: String,
     onSearchTextChange: (String) -> Unit,
     selectedCount: Int,
+    selectedTypes: Set<CallTypeFilter>,
     onSearchClick: () -> Unit,
     onCloseSearch: () -> Unit
 ) {
@@ -171,12 +179,26 @@ fun CallHistoryTopBar(
                     Icon(Icons.Default.Close, contentDescription = "Exit search")
                 }
             } else {
-                if (selectedCount > 0) {
+                if (selectedCount > 0 || selectedTypes.isNotEmpty()) {
+                    var badgeText = ""
+                    val badgeColor: Color
+                    if (CallTypeFilter.ANSWERED in selectedTypes) {
+                        badgeColor = Color(0xFF3E9C6F)
+                        badgeText = "A"
+                    } else if (CallTypeFilter.MISSED in selectedTypes) {
+                        badgeColor = Color(0xFFE0554F)
+                        badgeText = "M"
+                    } else {
+                        badgeColor = MaterialTheme.colorScheme.primary
+                    }
+                    if (selectedCount > 0) {
+                        badgeText = selectedCount.toString()
+                    }
                     Badge(
-                        containerColor = MaterialTheme.colorScheme.primary,
+                        containerColor = badgeColor,
                         modifier = Modifier.padding(end = 4.dp)
                     ) {
-                        Text("$selectedCount", color = MaterialTheme.colorScheme.onPrimary)
+                        Text(badgeText, color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
                 IconButton(onClick = onSearchClick) {
@@ -198,7 +220,9 @@ fun ContactChipGrid(
     searchText: String,
     options: List<ContactFilterOption>,
     selected: Set<String>,
+    selectedTypes: Set<CallTypeFilter>,
     onToggle: (String) -> Unit,
+    onToggleType: (CallTypeFilter) -> Unit,
     onClearAll: () -> Unit
 ) {
     val filteredOptions = remember(searchText, options) {
@@ -207,11 +231,37 @@ fun ContactChipGrid(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        if (selected.isNotEmpty()) {
-            TextButton(onClick = onClearAll, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CallTypeChip(
+                label = "Answered",
+                isSelected = CallTypeFilter.ANSWERED in selectedTypes,
+                badgeColor = Color(0xFF3E9C6F),
+                onClick = { onToggleType(CallTypeFilter.ANSWERED) }
+            )
+            CallTypeChip(
+                label = "Missed",
+                isSelected = CallTypeFilter.MISSED in selectedTypes,
+                badgeColor = Color(0xFFE0554F),
+                onClick = { onToggleType(CallTypeFilter.MISSED) }
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            TextButton(
+                onClick = onClearAll,
+            ) {
                 Text("Clear all (${selected.size})", color = MaterialTheme.colorScheme.error)
             }
+
         }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
 
         if (filteredOptions.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -238,6 +288,29 @@ fun ContactChipGrid(
             }
         }
     }
+}
+
+@Composable
+fun CallTypeChip(
+    label: String,
+    isSelected: Boolean,
+    badgeColor: Color,
+    onClick: () -> Unit
+) {
+    FilterChip(
+        selected = isSelected,
+        onClick = onClick,
+        label = { Text(label) },
+        leadingIcon = if (isSelected) {
+            {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(color = badgeColor, shape = CircleShape)
+                )
+            }
+        } else null
+    )
 }
 
 @Composable

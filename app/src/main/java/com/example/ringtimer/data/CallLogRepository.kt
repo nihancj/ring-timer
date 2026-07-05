@@ -10,6 +10,7 @@ import androidx.room.Room
 import com.example.ringtimer.reciever.CallStateReceiver.Companion.estimateRingCount
 import com.example.ringtimer.ui.CallHistoryUiModel
 import com.example.ringtimer.data.ContactFilterOption
+import com.example.ringtimer.ui.CallTypeFilter
 import com.example.ringtimer.util.CallDateFormatter
 import com.example.ringtimer.util.ContactLookupHelper
 import kotlinx.coroutines.CoroutineScope
@@ -39,35 +40,18 @@ class CallLogRepository private constructor(context: Context) {
         }
     }
 
-    fun getPagedEventsFlow(): Flow<PagingData<CallHistoryUiModel>> =
-        Pager(PagingConfig(pageSize = 50)) { dao.getAllPaged() }.flow
-            .map { pagingData ->
-                pagingData
-                    .map { CallHistoryUiModel.CallRow(it) as CallHistoryUiModel }
-                    .insertSeparators { before, after ->
-                        val afterRow = after as? CallHistoryUiModel.CallRow ?: return@insertSeparators null
-                        val beforeRow = before as? CallHistoryUiModel.CallRow
-                        val afterDay = CallDateFormatter.dayKey(afterRow.event.timestamp)
-                        val beforeDay = beforeRow?.let { CallDateFormatter.dayKey(it.event.timestamp) }
-                        if (beforeDay != afterDay) {
-                            CallHistoryUiModel.DateHeader(CallDateFormatter.formatDateHeader(afterRow.event.timestamp))
-                        } else null
-                    }
-            }
-
-    suspend fun getDistinctContactOptions(context: Context): List<ContactFilterOption> =
-        withContext(Dispatchers.IO) {
-            dao.getDistinctPhoneNumbers()
-                .map { number -> number to (ContactLookupHelper.getContactName(context, number) ?: number) }
-                .groupBy({ it.second }, { it.first })
-                .map { (name, nums) -> ContactFilterOption(displayName = name, numbers = nums) }
-                .sortedBy { it.displayName }
-        }
-
-    fun getPagedEventsFlow(filterNumbers: Set<String>): Flow<PagingData<CallHistoryUiModel>> =
+    fun getPagedEventsFlow(
+        filterNumbers: Set<String>,
+        filterTypes: Set<CallTypeFilter>
+    ): Flow<PagingData<CallHistoryUiModel>> =
         Pager(PagingConfig(pageSize = 50)) {
-            if (filterNumbers.isEmpty()) dao.getAllPaged()
-            else dao.getFilteredPaged(filterNumbers.toList())
+            val answeredValues = filterTypes.map { it == CallTypeFilter.ANSWERED }
+            dao.getFilteredPaged(
+                numbers = filterNumbers.toList(),
+                hasNumbers = filterNumbers.isNotEmpty(),
+                answeredValues = if (filterTypes.isEmpty()) listOf(true, false) else answeredValues,
+                hasTypes = filterTypes.isNotEmpty()
+            )
         }.flow.map { pagingData ->
             pagingData
                 .map { CallHistoryUiModel.CallRow(it) as CallHistoryUiModel }
@@ -80,6 +64,15 @@ class CallLogRepository private constructor(context: Context) {
                         CallHistoryUiModel.DateHeader(CallDateFormatter.formatDateHeader(afterRow.event.timestamp))
                     } else null
                 }
+        }
+
+    suspend fun getDistinctContactOptions(context: Context): List<ContactFilterOption> =
+        withContext(Dispatchers.IO) {
+            dao.getDistinctPhoneNumbers()
+                .map { number -> number to (ContactLookupHelper.getContactName(context, number) ?: number) }
+                .groupBy({ it.second }, { it.first })
+                .map { (name, nums) -> ContactFilterOption(displayName = name, numbers = nums) }
+                .sortedBy { it.displayName }
         }
 
     companion object {
