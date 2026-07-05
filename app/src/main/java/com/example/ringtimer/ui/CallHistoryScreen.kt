@@ -2,7 +2,6 @@ package com.example.ringtimer.ui
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,29 +17,29 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -59,7 +58,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -70,7 +68,6 @@ import com.example.ringtimer.R
 import com.example.ringtimer.data.CallEvent
 import com.example.ringtimer.data.CallLogRepository
 import com.example.ringtimer.data.ContactFilterOption
-import com.example.ringtimer.ui.theme.CallColors
 import com.example.ringtimer.util.CallDateFormatter
 import com.example.ringtimer.util.ContactLookupHelper
 
@@ -94,30 +91,40 @@ fun CallHistoryScreen(repository: CallLogRepository) {
         closeSearch()
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(CallColors.Background)) {
-        CallHistoryTopBar(
-            isSearchActive = isSearchActive,
-            searchText = searchText,
-            onSearchTextChange = { searchText = it },
-            selectedCount = selectedContacts.size,
-            onSearchClick = { isSearchActive = true },
-            onCloseSearch = closeSearch
-        )
-
-        if (isSearchActive) {
-            ContactChipGrid(
+    Scaffold(
+        topBar = {
+            CallHistoryTopBar(
+                isSearchActive = isSearchActive,
                 searchText = searchText,
-                options = contactOptions,
-                selected = selectedContacts,
-                onToggle = viewModel::toggleContact,
-                onClearAll = viewModel::clearFilters
+                onSearchTextChange = { searchText = it },
+                selectedCount = selectedContacts.size,
+                onSearchClick = { isSearchActive = true },
+                onCloseSearch = closeSearch
             )
-        } else {
-            CallHistoryList(events = events, isFiltered = selectedContacts.isNotEmpty())
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            if (isSearchActive) {
+                ContactChipGrid(
+                    searchText = searchText,
+                    options = contactOptions,
+                    selected = selectedContacts,
+                    onToggle = viewModel::toggleContact,
+                    onClearAll = viewModel::clearFilters
+                )
+            } else {
+                CallHistoryList(events = events, isFiltered = selectedContacts.isNotEmpty())
+            }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CallHistoryTopBar(
     isSearchActive: Boolean,
@@ -130,71 +137,60 @@ fun CallHistoryTopBar(
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CallColors.TopBarBackground)
-            .height(56.dp)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (isSearchActive) {
-            IconButton(onClick = onCloseSearch) {
-                Icon(Icons.Default.Search, contentDescription = "Search", tint = CallColors.TopBarPlaceholder)
-            }
-
-            TextField(
-                value = searchText,
-                onValueChange = onSearchTextChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester),
-                placeholder = { Text("Search contacts", color = CallColors.TopBarPlaceholder) },
-                singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = CallColors.TopBarBackground,
-                    unfocusedContainerColor = CallColors.TopBarBackground,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    cursorColor = CallColors.TopBarText,
-                    focusedTextColor = CallColors.TopBarText,
-                    unfocusedTextColor = CallColors.TopBarText
+    TopAppBar(
+        title = {
+            if (isSearchActive) {
+                TextField(
+                    value = searchText,
+                    onValueChange = onSearchTextChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    placeholder = { 
+                        Text("Search contacts")
+                    },
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                    )
                 )
-            )
-
-            IconButton(onClick = onCloseSearch) {
-                Icon(Icons.Default.Close, contentDescription = "Exit search", tint = CallColors.TopBarIcon)
-            }
-
-            LaunchedEffect(Unit) {
-                focusRequester.requestFocus()
-                keyboardController?.show()
-            }
-        } else {
-            Text(
-                text = "Ring Timer",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.5.sp
-                ),
-                color = CallColors.TopBarText, // Or your custom CallColors.TopBarText
-                textAlign = TextAlign.Start,
-                maxLines = 1,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            )
-            if (selectedCount > 0) {
-                Badge(containerColor = CallColors.Answered) {
-                    Text("$selectedCount", color = Color.White)
+                LaunchedEffect(Unit) {
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+            } else {
+                Text("Ring Timer", fontWeight = FontWeight.SemiBold)
             }
-            IconButton(onClick = onSearchClick) {
-                Icon(Icons.Default.Search, contentDescription = "Search contacts", tint = CallColors.TopBarIcon)
+        },
+        actions = {
+            if (isSearchActive) {
+                IconButton(onClick = onCloseSearch) {
+                    Icon(Icons.Default.Close, contentDescription = "Exit search")
+                }
+            } else {
+                if (selectedCount > 0) {
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                        Text("$selectedCount", color = MaterialTheme.colorScheme.onPrimary)
+                    }
+                }
+                IconButton(onClick = onSearchClick) {
+                    Icon(Icons.Default.Search, contentDescription = "Search contacts")
+                }
             }
-        }
-    }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+            actionIconContentColor = MaterialTheme.colorScheme.onSurface
+        )
+    )
 }
 
 @Composable
@@ -213,13 +209,13 @@ fun ContactChipGrid(
     Column(modifier = Modifier.fillMaxSize()) {
         if (selected.isNotEmpty()) {
             TextButton(onClick = onClearAll, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                Text("Clear all (${selected.size})", color = CallColors.Missed)
+                Text("Clear all (${selected.size})", color = MaterialTheme.colorScheme.error)
             }
         }
 
         if (filteredOptions.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No matching contacts", color = CallColors.SecondaryText)
+                Text("No matching contacts", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             @OptIn(ExperimentalLayoutApi::class)
@@ -237,12 +233,6 @@ fun ContactChipGrid(
                         selected = isSelected,
                         onClick = { onToggle(option.displayName) },
                         label = { Text(option.displayName) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = CallColors.Surface,
-                            selectedContainerColor = CallColors.Answered.copy(alpha = 0.15f),
-                            labelColor = CallColors.SecondaryText,
-                            selectedLabelColor = CallColors.Answered
-                        )
                     )
                 }
             }
@@ -260,10 +250,13 @@ fun CallHistoryList(events: LazyPagingItems<CallHistoryUiModel>, isFiltered: Boo
         when {
             isLoading -> CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center),
-                color = CallColors.Answered
+                color = MaterialTheme.colorScheme.primary
             )
             isEmpty -> EmptyCallHistory(isFiltered = isFiltered)
-            else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 12.dp)
+            ) {
                 items(
                     count = events.itemCount,
                     key = events.itemKey { model ->
@@ -292,15 +285,18 @@ fun CallHistoryList(events: LazyPagingItems<CallHistoryUiModel>, isFiltered: Boo
 
 @Composable
 fun DateHeaderRow(label: String) {
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelLarge,
-        color = CallColors.HeaderText,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CallColors.Background)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    )
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        shape = MaterialTheme.shapes.extraSmall,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+        )
+    }
 }
 
 @Composable
@@ -311,69 +307,45 @@ fun CallHistoryRow(context: Context, event: CallEvent) {
             ?: "Unknown"
     }
 
-    Row(
+    ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CallColors.Surface)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            painter = if (event.wasAnswered) painterResource(id = R.drawable.call_received)
-                    else painterResource(id = R.drawable.call_missed_incoming),
-            contentDescription = if (event.wasAnswered) "Answered" else "Missed",
-            tint = if (event.wasAnswered) CallColors.Answered else CallColors.Missed
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
         )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(displayName, color = CallColors.PrimaryText, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                "${if (event.wasAnswered) "Answered" else "Missed"}  ~${event.estimatedRings} rings (${event.ringDurationMs / 1000}s)",
-                color = CallColors.SecondaryText,
-                style = MaterialTheme.typography.bodyMedium
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = if (event.wasAnswered) painterResource(id = R.drawable.call_received)
+                        else painterResource(id = R.drawable.call_missed_incoming),
+                contentDescription = if (event.wasAnswered) "Answered" else "Missed",
+                tint = if (event.wasAnswered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(24.dp)
             )
-        }
 
-        Text(
-            CallDateFormatter.formatTimeOfDay(event.timestamp),
-            color = CallColors.SecondaryText,
-            style = MaterialTheme.typography.labelMedium
-        )
-    }
+            Spacer(modifier = Modifier.width(16.dp))
 
-    HorizontalDivider(color = CallColors.Divider, thickness = 1.dp)
-}
-
-@Composable
-fun ContactFilterRow(
-    options: List<ContactFilterOption>,
-    selected: Set<String>,
-    onToggle: (String) -> Unit
-) {
-    if (options.isEmpty()) return
-
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CallColors.Surface)
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp)
-    ) {
-        items(options, key = { it.displayName }) { option ->
-            val isSelected = option.displayName in selected
-            FilterChip(
-                selected = isSelected,
-                onClick = { onToggle(option.displayName) },
-                label = { Text(option.displayName) },
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = CallColors.Surface,
-                    selectedContainerColor = CallColors.Answered.copy(alpha = 0.15f),
-                    labelColor = CallColors.SecondaryText,
-                    selectedLabelColor = CallColors.Answered
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    displayName,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleMedium
                 )
+                Text(
+                    "${if (event.wasAnswered) "Answered" else "Missed"}  ~${event.estimatedRings} rings (${event.ringDurationMs / 1000}s)",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            Text(
+                CallDateFormatter.formatTimeOfDay(event.timestamp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium
             )
         }
     }
@@ -382,9 +354,7 @@ fun ContactFilterRow(
 @Composable
 fun EmptyCallHistory(isFiltered: Boolean) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -392,19 +362,19 @@ fun EmptyCallHistory(isFiltered: Boolean) {
             imageVector = Icons.Default.Call,
             contentDescription = null,
             modifier = Modifier.size(48.dp),
-            tint = CallColors.SecondaryText
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             "No calls yet",
-            color = CallColors.PrimaryText,
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.titleMedium
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             "Your call history will show up here once you receive or miss a call"
                     + if(isFiltered) " from this contact." else ".",
-            color = CallColors.SecondaryText,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center
         )
